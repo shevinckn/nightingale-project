@@ -1,0 +1,14 @@
+[
+    {
+    "question": "Vilket RVEF-värde tyder mest på högerkammarsvikt?",
+    "options": ["60%", "55%", "45%", "30%"],
+    "correctAnswer": "30%",
+    "difficulty": "medium"
+    },
+    {
+    "question": "Vad är ett normalt referensintervall för RVEF?",
+    "options": ["35–50%", "40–55%", "45–60%", "50–70%"],
+    "correctAnswer": "45–60%",
+    "difficulty": "easy"
+    }
+]

@@ -1,56 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quiz med AI</title>
-    <!-- Länka till Bootstrap för styling -->
+    <title>Quiz with AI</title>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
     />
+    <style>
+      body {
+        background-color: #ffffff;
+        color: #000000;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /*typsnitt*/
+      }
+      /*knappar*/
+      .btn-red {
+        background-color: #ff4d4d;
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /*skugga*/
+        transition: all 0.3s ease; /*övergångseffekt*/
+        font-weight: bold; /*fet stil*/
+      }
+
+      .btn-red:hover {
+        background-color: #e60000;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+      }
+      /*knapp utan ram*/
+    .btn-outline-dark {
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .btn-outline-dark:hover {
+    background-color: #000;
+    color: #fff;
+    transform: scale(1.02);
+  }
+
+  .card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .card:hover {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+  }
+    </style>
   </head>
   <body>
     <div id="app" class="container mt-5">
-      <h1>{{ title }}</h1>
-      <div class="card p-4">
-        <h3>{{ question }}</h3>
-        <div v-for="(answer, index) in answers" :key="index">
-          <button class="btn btn-outline-primary w-100 mb-2" @click="checkAnswer(answer)">
+      <!-- Startskärm -->
+      <div v-if="!started && !quizEnded" class="text-center">
+        <h1>{{ title }}</h1>
+        <p>Press the button to start the test.</p>
+        <button class="btn btn-red" @click="startQuiz">Start the test</button>
+      </div>
+
+      <!-- Quiz-sida -->
+      <div v-if="started && !quizEnded" class="card p-4">
+        <h4>Fråga {{ currentIndex + 1 }} av {{ questions.length }}</h4>
+        <h3 class="my-3">{{ currentQuestion.question }}</h3>
+        <div v-for="(answer, index) in currentQuestion.answers" :key="index">
+          <button class="btn btn-outline-dark w-100 mb-2" @click="selectAnswer(answer)">
             {{ answer }}
           </button>
         </div>
       </div>
-      <p v-if="resultMessage" class="mt-4">{{ resultMessage }}</p>
+
+      <!-- Resultatsida -->
+      <div v-if="quizEnded" class="text-center">
+        <h2>The quiz is complete!</h2>
+        <p>You got {{ score }} of {{ questions.length }} right.</p>
+
+        <!-- Poängjämförelse med AI -->
+        <div class="mt-4 p-3 border rounded" style="background-color: #f8f9fa;">
+          <h4>Score comparison</h4>
+          <p> You: <strong>{{ score }}</strong></p>
+          <p>🤖 AI: <strong>{{ aiScore }}</strong></p>
+          <p v-if="score > aiScore" class="text-success">Congratulations! You beat the AI! 🏆</p>
+          <p v-else-if="score < aiScore" class="text-danger">The AI ​​won this time... 🤖🏆</p>
+          <p v-else class="text-warning">Draw! Well played! 😄</p>
+        </div>
+
+        <button class="btn btn-red mt-4" @click="restartQuiz">Play again</button>
+      </div>
     </div>
 
-    <!-- Importera Vue direkt från CDN -->
+    <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3"></script>
     <script>
-      // Vue-appen för quizet
       const app = Vue.createApp({
         data() {
           return {
-            title: "Välkommen till Quizet!",
-            question: "Vilket år började andra världskriget?",
-            answers: ["1914", "1939", "1945", "1921"],
-            correctAnswer: "1939",
-            resultMessage: ""
+            title: "Welcome to the Quiz!",
+            started: false,
+            quizEnded: false,
+            currentIndex: 0,
+            score: 0,
+            aiScore: 0,
+            selectedAnswers: [],
+            questions: [
+              {
+                question: "Vilket år började andra världskriget?",
+                answers: ["1914", "1939", "1945", "1921"],
+                correct: "1939",
+              },
+              {
+                question: "Vad heter Sveriges huvudstad?",
+                answers: ["Göteborg", "Malmö", "Stockholm", "Uppsala"],
+                correct: "Stockholm",
+              },
+              {
+                question: "Hur många ben har en spindel?",
+                answers: ["6", "8", "10", "12"],
+                correct: "8",
+              },
+            ],
           };
         },
+        computed: {
+          currentQuestion() {
+            return this.questions[this.currentIndex];
+          },
+        },
         methods: {
-          checkAnswer(selectedAnswer) {
-            if (selectedAnswer === this.correctAnswer) {
-              this.resultMessage = "Rätt svar!";
-            } else {
-              this.resultMessage = "Fel svar!";
-            }
-          }
-        }
+          startQuiz() {
+            this.started = true;
+            this.quizEnded = false;
+            this.currentIndex = 0;
+            this.score = 0;
+            this.selectedAnswers = [];
+          },
+          selectAnswer(answer) {
+            this.selectedAnswers.push({
+              question: this.currentQuestion.question,
+              selected: answer,
+              correct: this.currentQuestion.correct,
+            });
+
+            // Gå vidare till nästa fråga efter kort paus
+            setTimeout(() => {
+              if (this.currentIndex < this.questions.length - 1) {
+                this.currentIndex++;
+              } else {
+                this.endQuiz();
+              }
+            }, 300);
+          },
+          endQuiz() {
+            this.started = false;
+            this.quizEnded = true;
+
+            // Räkna spelarens poäng
+            this.score = this.selectedAnswers.filter(
+              (a) => a.selected === a.correct
+            ).length;
+
+            // Temporär AI-poäng (kan ersättas av riktig AI senare)
+            this.aiScore = Math.floor(Math.random() * this.questions.length + 1);
+          },
+          restartQuiz() {
+            this.started = false;
+            this.quizEnded = false;
+            this.currentIndex = 0;
+            this.score = 0;
+            this.aiScore = 0;
+            this.selectedAnswers = [];
+          },
+        },
       });
 
       app.mount("#app");
     </script>
   </body>
 </html>
-

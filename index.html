@@ -12,17 +12,17 @@
       body {
         background-color: #ffffff;
         color: #000000;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /*typsnitt*/
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
-      /*knappar*/
+
       .btn-red {
         background-color: #ff4d4d;
         color: #ffffff;
         border: none;
         border-radius: 12px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /*skugga*/
-        transition: all 0.3s ease; /*övergångseffekt*/
-        font-weight: bold; /*fet stil*/
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        font-weight: bold;
       }
 
       .btn-red:hover {
@@ -30,30 +30,30 @@
         transform: translateY(-2px);
         box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
       }
-      /*knapp utan ram*/
-    .btn-outline-dark {
-    border-radius: 10px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  }
 
-  .btn-outline-dark:hover {
-    background-color: #000;
-    color: #fff;
-    transform: scale(1.02);
-  }
+      .btn-outline-dark {
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
 
-  .card {
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease;
-  }
+      .btn-outline-dark:hover {
+        background-color: #000;
+        color: #fff;
+        transform: scale(1.02);
+      }
 
-  .card:hover {
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
-  }
+      .card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.3s ease;
+      }
+
+      .card:hover {
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+      }
     </style>
   </head>
   <body>
@@ -84,7 +84,7 @@
         <!-- Poängjämförelse med AI -->
         <div class="mt-4 p-3 border rounded" style="background-color: #f8f9fa;">
           <h4>Score comparison</h4>
-          <p> You: <strong>{{ score }}</strong></p>
+          <p>You: <strong>{{ score }}</strong></p>
           <p>🤖 AI: <strong>{{ aiScore }}</strong></p>
           <p v-if="score > aiScore" class="text-success">Congratulations! You beat the AI! 🏆</p>
           <p v-else-if="score < aiScore" class="text-danger">The AI ​​won this time... 🤖🏆</p>
@@ -97,6 +97,11 @@
 
     <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3"></script>
+
+    <!-- Dummy AI (lägg denna sökväg korrekt om du har den på annan plats) -->
+    <script src="data/utils/dummyAI.js"></script>
+
+    <!-- App Script -->
     <script>
       const app = Vue.createApp({
         data() {
@@ -113,24 +118,27 @@
                 question: "Vilket år började andra världskriget?",
                 answers: ["1914", "1939", "1945", "1921"],
                 correct: "1939",
+                difficulty: "medium"
               },
               {
                 question: "Vad heter Sveriges huvudstad?",
                 answers: ["Göteborg", "Malmö", "Stockholm", "Uppsala"],
                 correct: "Stockholm",
+                difficulty: "easy"
               },
               {
                 question: "Hur många ben har en spindel?",
                 answers: ["6", "8", "10", "12"],
                 correct: "8",
-              },
-            ],
+                difficulty: "easy"
+              }
+            ]
           };
         },
         computed: {
           currentQuestion() {
             return this.questions[this.currentIndex];
-          },
+          }
         },
         methods: {
           startQuiz() {
@@ -138,16 +146,16 @@
             this.quizEnded = false;
             this.currentIndex = 0;
             this.score = 0;
+            this.aiScore = 0;
             this.selectedAnswers = [];
           },
           selectAnswer(answer) {
             this.selectedAnswers.push({
               question: this.currentQuestion.question,
               selected: answer,
-              correct: this.currentQuestion.correct,
+              correct: this.currentQuestion.correct
             });
 
-            // Gå vidare till nästa fråga efter kort paus
             setTimeout(() => {
               if (this.currentIndex < this.questions.length - 1) {
                 this.currentIndex++;
@@ -165,8 +173,20 @@
               (a) => a.selected === a.correct
             ).length;
 
-            // Temporär AI-poäng (kan ersättas av riktig AI senare)
-            this.aiScore = Math.floor(Math.random() * this.questions.length + 1);
+            // AI-svar och poäng
+            let aiCorrect = 0;
+            this.questions.forEach((q) => {
+              const aiAnswer = getAIAnswer({
+                question: q.question,
+                options: q.answers,
+                correctAnswer: q.correct,
+                difficulty: q.difficulty || "medium"
+              });
+              if (aiAnswer === q.correct) {
+                aiCorrect++;
+              }
+            });
+            this.aiScore = aiCorrect;
           },
           restartQuiz() {
             this.started = false;
@@ -175,8 +195,8 @@
             this.score = 0;
             this.aiScore = 0;
             this.selectedAnswers = [];
-          },
-        },
+          }
+        }
       });
 
       app.mount("#app");

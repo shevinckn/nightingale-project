@@ -54,6 +54,11 @@
       .card:hover {
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
       }
+
+      video {
+        max-width: 100%;
+        margin-bottom: 20px;
+      }
     </style>
   </head>
   <body>
@@ -69,6 +74,13 @@
       <div v-if="started && !quizEnded" class="card p-4">
         <h4>Fråga {{ currentIndex + 1 }} av {{ questions.length }}</h4>
         <h3 class="my-3">{{ currentQuestion.question }}</h3>
+
+        <!-- Lägg till en video för varje fråga -->
+        <video v-if="currentQuestion.videoUrl" controls>
+          <source :src="currentQuestion.videoUrl" type="video/mp4">
+          Din webbläsare stödjer inte video.
+        </video>
+
         <div v-for="(answer, index) in currentQuestion.answers" :key="index">
           <button class="btn btn-outline-dark w-100 mb-2" @click="selectAnswer(answer)">
             {{ answer }}
@@ -114,25 +126,23 @@
             aiScore: 0,
             selectedAnswers: [],
             questions: [
-              {
-                question: "Vilket år började andra världskriget?",
-                answers: ["1914", "1939", "1945", "1921"],
-                correct: "1939",
-                difficulty: "medium"
-              },
-              {
-                question: "Vad heter Sveriges huvudstad?",
-                answers: ["Göteborg", "Malmö", "Stockholm", "Uppsala"],
-                correct: "Stockholm",
-                difficulty: "easy"
-              },
-              {
-                question: "Hur många ben har en spindel?",
-                answers: ["6", "8", "10", "12"],
-                correct: "8",
-                difficulty: "easy"
-              }
-            ]
+  {
+    question: "Vad är ungefärlig EF för detta hjärtslag?", // frågan är EF-baserad
+    videoUrl: "mp4vid/0X1B00A1770ABC7BD2.mp4",
+    answers: ["30.5%", "50.8%", "24.8%", "85.9%"],
+    correct: "24.8%", 
+    difficulty: "medium"
+  },
+  {
+    question: "Vad är ungefärlig EF i videon?",
+    videoUrl: "mp4vid/0X1000ABCD1234EFGH.mp4",
+    answers: ["15%", "30%", "45%", "60%"], // ej ändrat
+    correct: "30%",
+    difficulty: "easy"
+  },
+  // lägg till fler frågor här
+]
+
           };
         },
         computed: {

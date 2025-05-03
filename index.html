@@ -46,9 +46,15 @@
 
       .card {
         border: none;
-        border-radius: 16px;
+        border-radius: 12px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
         transition: box-shadow 0.3s ease;
+        max-width: 480px;
+        margin: 0 auto;
+        transform: scale(0.9); /* Gör kortet mindre */
+       /* aspect-ratio: 1 / 1;   /* Mer kvadratisk form */
+        padding: 1.5rem;
+        width: 100%;
       }
 
       .card:hover {
@@ -56,9 +62,12 @@
       }
 
       video {
-        max-width: 100%;
-        margin-bottom: 20px;
-      }
+  max-width: 100%;
+  max-height: 240px;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
     </style>
   </head>
   <body>
@@ -66,54 +75,107 @@
       <!-- Startskärm -->
       <div v-if="!started && !quizEnded" class="text-center">
         <h1>{{ title }}</h1>
-        <p>Press the button to start the test.</p>
+        <p>Press the button to start the test!</p>
         <button class="btn btn-red" @click="startQuiz">Start the test</button>
       </div>
 
       <!-- Quiz-sida -->
       <div v-if="started && !quizEnded" class="card p-4">
-        <h4>Fråga {{ currentIndex + 1 }} av {{ questions.length }}</h4>
+        <h4>Question {{ currentIndex + 1 }} of {{ questions.length }}</h4>
         <h3 class="my-3">{{ currentQuestion.question }}</h3>
 
-        <!-- Lägg till en video för varje fråga -->
-        <video v-if="currentQuestion.videoUrl" controls>
-          <source :src="currentQuestion.videoUrl" type="video/mp4">
+        <video v-if="currentQuestion.videoUrl" :key="currentIndex" controls>
+          <source :src="currentQuestion.videoUrl" type="video/mp4" />
           Din webbläsare stödjer inte video.
         </video>
 
         <div v-for="(answer, index) in currentQuestion.answers" :key="index">
-          <button class="btn btn-outline-dark w-100 mb-2" @click="selectAnswer(answer)">
+          <button
+            class="btn btn-outline-dark w-100 mb-2"
+            :disabled="answerSelected"
+            @click="selectAnswer(answer)"
+          >
             {{ answer }}
           </button>
         </div>
+
+        <!-- Feedback -->
+        <div v-if="feedbackMessage" class="mt-3">
+          <p :class="{'text-success': feedbackMessage.includes('Rätt'), 'text-danger': feedbackMessage.includes('Fel')}">
+            {{ feedbackMessage }}
+          </p>
+        </div>
+
+        <button
+          v-if="showNextButton"
+          class="btn btn-red mt-3"
+          @click="nextQuestion"
+        >
+          Next question
+        </button>
       </div>
 
       <!-- Resultatsida -->
       <div v-if="quizEnded" class="text-center">
-        <h2>The quiz is complete!</h2>
-        <p>You got {{ score }} of {{ questions.length }} right.</p>
+        <h2>The quiz is ready!</h2>
+        <p>You got {{ score }} of {{ questions.length }} right!</p>
 
-        <!-- Poängjämförelse med AI -->
         <div class="mt-4 p-3 border rounded" style="background-color: #f8f9fa;">
-          <h4>Score comparison</h4>
+          <h4>Score Comparison</h4>
           <p>You: <strong>{{ score }}</strong></p>
           <p>🤖 AI: <strong>{{ aiScore }}</strong></p>
           <p v-if="score > aiScore" class="text-success">Congratulations! You beat the AI! 🏆</p>
-          <p v-else-if="score < aiScore" class="text-danger">The AI ​​won this time... 🤖🏆</p>
-          <p v-else class="text-warning">Draw! Well played! 😄</p>
+          <p v-else-if="score < aiScore" class="text-danger">The AI ​​won this time...🤖🏆</p>
+          <p v-else class="text-warning">Draw! Good job!😄</p>
         </div>
 
-        <button class="btn btn-red mt-4" @click="restartQuiz">Play again</button>
+        <!-- Felaktiga svar -->
+        <div v-if="incorrectAnswers.length > 0" class="mt-4 text-start">
+          <h5>Incorrect answers:</h5>
+          <ul class="list-group">
+            <li
+              v-for="(item, index) in incorrectAnswers"
+              :key="index"
+              class="list-group-item"
+            >
+              <strong>Question:</strong> {{ item.question }}<br />
+              <span class="text-danger"><strong>Your answer:</strong> {{ item.selected }}</span><br />
+              <span class="text-success"><strong>Correct answer::</strong> {{ item.correct }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Tidigare resultat -->
+        <div v-if="previousResults.length > 0" class="mt-4">
+          <h5>Your previous results</h5>
+          <ul class="list-group">
+            <li
+              v-for="(result, i) in previousResults"
+              :key="i"
+              class="list-group-item"
+            >
+              {{ result.timestamp }} – {{ result.score }}/{{ result.total }}
+            </li>
+          </ul>
+        </div>
+
+        <button class="btn btn-red mt-4" @click="restartQuiz">Play again!</button>
       </div>
     </div>
 
     <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3"></script>
+    <!-- Dummy AI (lägg denna sökväg rätt om du använder extern fil) -->
+    <script>
+      function getAIAnswer({ question, options, correctAnswer, difficulty }) {
+        const random = Math.random();
+        if (difficulty === "easy") return random < 0.9 ? correctAnswer : options.find(o => o !== correctAnswer);
+        if (difficulty === "medium") return random < 0.7 ? correctAnswer : options.find(o => o !== correctAnswer);
+        return random < 0.5 ? correctAnswer : options.find(o => o !== correctAnswer);
+      }
+    </script>
 
-    <!-- Dummy AI (lägg denna sökväg korrekt om du har den på annan plats) -->
-    <script src="data/utils/dummyAI.js"></script>
-
-    <!-- App Script -->
+    <!-- Vue App -->
     <script>
       const app = Vue.createApp({
         data() {
@@ -125,87 +187,90 @@
             score: 0,
             aiScore: 0,
             selectedAnswers: [],
+            feedbackMessage: "",
+            showNextButton: false,
+            answerSelected: false,
+            previousResults: [],
             questions: [
-  {
-    question: "Vad är ungefärlig EF för detta hjärtslag?", // frågan är EF-baserad
-    videoUrl: "mp4vid/0X1B00A1770ABC7BD2.mp4",
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Reducerat", //28% EF 
-    difficulty: "medium"
-  },
-  {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0X1000ABCD1234EFGH.mp4",
-    answers: ["Normal", "Abnormal", "Reducerat",], 
-    correct: "Normal", //59% EF
-    difficulty: "easy" //hur vet jag detta?
-  },
-  {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0X2A6A2DB28C7B4608.mp4", //ändra
-    answers: ["Normal", "Abnormal", "Reducerat",], 
-    correct: "Normal", //50% EF
-    difficulty: "hard" //hur vet jag detta?
-  },
-  {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0X2B0F87B014648FF1.mp4", //ändra
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Normal", //51% EF
-    difficulty: "hard" //hur vet jag detta?
-  },
-  {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0X5515B0BD077BE68A.mp4", 
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Abnormal", //% 46% EF   
-    difficulty: "medium" //hur vet jag detta?
-  },
-  {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0XFDB874C30A9C923.mp4",
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Reducerat", //19% EF
-    difficulty: "easy" //hur vet jag detta?
-  },  
-  {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0XFC6499D603B9E1E.mp4", 
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Abnormal", //45% EF
-    difficulty: "medium" //hur vet jag detta?
-    }, 
-    {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0XFCDC29AA6B8E83B.mp4", //ändra
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Reducerat", //11% EF
-    difficulty: "easy" //hur vet jag detta?
-    },
-    {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0XFD9464CF9E40B66.mp4", //ändra 
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Normal", //71% EF
-    difficulty: "easy" //hur vet jag detta?
-    },
-    {
-    question: "Vad är ungefärlig EF i videon?",
-    videoUrl: "mp4vid/0XE855B147551A51.mp4", //ändra 
-    answers: ["Normal", "Abnormal", "Reducerat",],
-    correct: "Abnormal", //42% EF
-    difficulty: "medium" //hur vet jag detta?
-    }
-
-   
-  // lägg till fler frågor här
-]
-
+              {
+                question: "Vad är ungefärlig EF för detta hjärtslag?",
+                videoUrl: "mp4vid/0X1B00A1770ABC7BD2.mp4",
+                answers: ["Normal", "Abnormal", "Reducerat"],
+                correct: "Reducerat",
+                difficulty: "medium"
+              },
+              {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0X1DBA0F198086D94D.mp4",
+                answers: ["Normal", "Abnormal", "Reducerat"],
+                correct: "Normal",
+                difficulty: "easy"
+              },
+              {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0X2A6A2DB28C7B4608.mp4", //ändra
+               answers: ["Normal", "Abnormal", "Reducerat",], 
+                correct: "Normal", //50% EF
+                difficulty: "hard" //hur vet jag detta?
+              },
+             {
+              question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0X2B0F87B014648FF1.mp4", //ändra
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Normal", //51% EF
+                difficulty: "hard" //hur vet jag detta?
+              },
+              {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0X5515B0BD077BE68A.mp4", 
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Abnormal", //% 46% EF   
+                difficulty: "medium" //hur vet jag detta?
+              },
+              {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0XFDB874C30A9C923.mp4",
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Reducerat", //19% EF
+                difficulty: "easy" //hur vet jag detta?
+              },  
+              {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0XFC6499D603B9E1E.mp4", 
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Abnormal", //45% EF
+                difficulty: "medium" //hur vet jag detta?
+                }, 
+                {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0XFCDC29AA6B8E83B.mp4", //ändra
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Reducerat", //11% EF
+                difficulty: "easy" //hur vet jag detta?
+                },
+                {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0XFD9464CF9E40B66.mp4", //ändra 
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Normal", //71% EF
+                difficulty: "easy" //hur vet jag detta?
+                },
+                {
+                question: "Vad är ungefärlig EF i videon?",
+                videoUrl: "mp4vid/0XE855B147551A51.mp4", //ändra 
+                answers: ["Normal", "Abnormal", "Reducerat",],
+                correct: "Abnormal", //42% EF
+                difficulty: "medium" //hur vet jag detta?
+                },
+            ]
           };
         },
         computed: {
           currentQuestion() {
             return this.questions[this.currentIndex];
+          },
+          incorrectAnswers() {
+            return this.selectedAnswers.filter(a => a.selected !== a.correct);
           }
         },
         methods: {
@@ -216,53 +281,58 @@
             this.score = 0;
             this.aiScore = 0;
             this.selectedAnswers = [];
+            this.feedbackMessage = "";
+            this.answerSelected = false;
+            this.showNextButton = false;
           },
           selectAnswer(answer) {
+            if (this.answerSelected) return;
+            this.answerSelected = true;
+            const isCorrect = answer === this.currentQuestion.correct;
+            this.feedbackMessage = isCorrect ? "Rätt svar! ✅" : "Fel svar. ❌";
+            this.showNextButton = true;
+
             this.selectedAnswers.push({
               question: this.currentQuestion.question,
               selected: answer,
               correct: this.currentQuestion.correct
             });
-
-            setTimeout(() => {
-              if (this.currentIndex < this.questions.length - 1) {
-                this.currentIndex++;
-              } else {
-                this.endQuiz();
-              }
-            }, 300);
+          },
+          nextQuestion() {
+            this.feedbackMessage = "";
+            this.showNextButton = false;
+            this.answerSelected = false;
+            if (this.currentIndex < this.questions.length - 1) {
+              this.currentIndex++;
+            } else {
+              this.endQuiz();
+            }
           },
           endQuiz() {
             this.started = false;
             this.quizEnded = true;
+            this.score = this.selectedAnswers.filter(a => a.selected === a.correct).length;
 
-            // Räkna spelarens poäng
-            this.score = this.selectedAnswers.filter(
-              (a) => a.selected === a.correct
-            ).length;
-
-            // AI-svar och poäng
-            let aiCorrect = 0;
-            this.questions.forEach((q) => {
+            const aiCorrect = this.questions.filter(q => {
               const aiAnswer = getAIAnswer({
                 question: q.question,
                 options: q.answers,
                 correctAnswer: q.correct,
                 difficulty: q.difficulty || "medium"
               });
-              if (aiAnswer === q.correct) {
-                aiCorrect++;
-              }
-            });
+              return aiAnswer === q.correct;
+            }).length;
+
             this.aiScore = aiCorrect;
+
+            this.previousResults.push({
+              timestamp: new Date().toLocaleString(),
+              score: this.score,
+              total: this.questions.length
+            });
           },
           restartQuiz() {
-            this.started = false;
-            this.quizEnded = false;
-            this.currentIndex = 0;
-            this.score = 0;
-            this.aiScore = 0;
-            this.selectedAnswers = [];
+            this.startQuiz();
           }
         }
       });

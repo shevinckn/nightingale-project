@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="sv"> 
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -195,70 +195,70 @@
               {
                 question: "Vad är ungefärlig EF för detta hjärtslag?",
                 videoUrl: "mp4vid/0X1B00A1770ABC7BD2.mp4",
-                answers: ["Normal", "Abnormal", "Reducerat"],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Reducerat",
                 difficulty: "medium"
               },
               {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0X1DBA0F198086D94D.mp4",
-                answers: ["Normal", "Abnormal", "Reducerat"],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Normal",
                 difficulty: "easy"
               },
               {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0X2A6A2DB28C7B4608.mp4", //ändra
-               answers: ["Normal", "Abnormal", "Reducerat",], 
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Normal", //50% EF
                 difficulty: "hard" //hur vet jag detta?
               },
              {
               question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0X2B0F87B014648FF1.mp4", //ändra
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Normal", //51% EF
                 difficulty: "hard" //hur vet jag detta?
               },
               {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0X5515B0BD077BE68A.mp4", 
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Abnormal", //% 46% EF   
                 difficulty: "medium" //hur vet jag detta?
               },
               {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0XFDB874C30A9C923.mp4",
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Reducerat", //19% EF
                 difficulty: "easy" //hur vet jag detta?
               },  
               {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0XFC6499D603B9E1E.mp4", 
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Abnormal", //45% EF
                 difficulty: "medium" //hur vet jag detta?
                 }, 
                 {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0XFCDC29AA6B8E83B.mp4", //ändra
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Reducerat", //11% EF
                 difficulty: "easy" //hur vet jag detta?
                 },
                 {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0XFD9464CF9E40B66.mp4", //ändra 
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Normal", //71% EF
                 difficulty: "easy" //hur vet jag detta?
                 },
                 {
                 question: "Vad är ungefärlig EF i videon?",
                 videoUrl: "mp4vid/0XE855B147551A51.mp4", //ändra 
-                answers: ["Normal", "Abnormal", "Reducerat",],
+                answers: ["Normal","Abnormal","Reducerat",],
                 correct: "Abnormal", //42% EF
                 difficulty: "medium" //hur vet jag detta?
                 },
@@ -289,7 +289,7 @@
             if (this.answerSelected) return;
             this.answerSelected = true;
             const isCorrect = answer === this.currentQuestion.correct;
-            this.feedbackMessage = isCorrect ? "Rätt svar! ✅" : "Fel svar. ❌";
+            this.feedbackMessage = isCorrect ? "Right answer! ✅" : "Wrong answer! ❌";
             this.showNextButton = true;
 
             this.selectedAnswers.push({

@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import joblib
 import numpy as np
+import pandas as pd
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -12,7 +13,6 @@ encoder = joblib.load("label_encoder.pkl")
 @app.route("/api/predict", methods=["POST"])
 def predict():
     data = request.get_json()
-
     try:
         features = [
             float(data["ESV"]),
@@ -27,6 +27,30 @@ def predict():
         return jsonify({"prediction": label})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@app.route("/api/questions", methods=["GET"])
+def get_questions():
+    try:
+        df = pd.read_csv("FileList.csv")
+        questions = []
+        for _, row in df.iterrows():
+            questions.append({
+                "question": row["question"],
+                "answers": [row["a"], row["b"], row["c"], row["d"]],
+                "correct": row["correct"],
+                "videoUrl": row.get("videoUrl", ""),
+                "metadata": {
+                    "ESV": row["ESV"],
+                    "EDV": row["EDV"],
+                    "FrameHeight": row["FrameHeight"],
+                    "FrameWidth": row["FrameWidth"],
+                    "FPS": row["FPS"],
+                    "NumberOfFrames": row["NumberOfFrames"]
+                }
+            })
+        return jsonify(questions)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

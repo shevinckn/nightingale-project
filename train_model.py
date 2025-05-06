@@ -5,7 +5,7 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import LabelEncoder
 import joblib
 
-df = pd.read_csv("filelist.csv")
+df = pd.read_csv("FileList.csv")
 
 def ef_category(ef):
     if ef > 50:

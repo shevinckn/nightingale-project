@@ -5,7 +5,7 @@ import joblib
 import random
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="dist", static_url_path="")
 CORS(app)  # Tillåter anrop från frontend
 
 # Ladda ML-modell och encoder (om du använder den för prediction)
@@ -62,7 +62,9 @@ def get_questions():
 # API: Serve video från /mp4
 @app.route("/videos/<path:filename>")
 def serve_video(filename):
-    return send_from_directory(r"C:\Users\shevi\Desktop\nightingale-project\mp4", filename)
+    video_dir = os.path.join(os.path.dirname(__file__), "mp4")
+    return send_from_directory(video_dir, filename)
+
 
 # API: ML prediction (om du använder det)
 @app.route("/api/predict", methods=["POST"])
@@ -82,6 +84,16 @@ def predict():
         return jsonify({"prediction": label})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    
+@app.route("/")
+def index():
+    return app.send_static_file("index.html")
+
+@app.route("/<path:path>")
+def static_proxy(path):
+    return app.send_static_file(path)
+    
 
 if __name__ == "__main__":
     app.run(debug=True)
+

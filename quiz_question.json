@@ -1,0 +1,41 @@
+import pandas as pd
+import random
+import json
+
+# Läs CSV
+df = pd.read_csv('fileList.csv')
+
+# Filtrera rader som har ett giltigt EF-värde (ej NaN) och där videon ska användas
+df = df[df['EF'].notna()]  # ta bara de med angivet EF
+
+# Behåll bara rader med split VAL, TRAIN eller TEST
+df = df[df['Split'].isin(['VAL', 'TRAIN', 'TEST'])]
+
+# Konvertera EF till kategorier
+def ef_to_category(ef):
+    if ef < 40:
+        return 'Reducerat'
+    elif ef < 50:
+        return 'Abnormal'
+    else:
+        return 'Normal'
+
+df['category'] = df['EF'].apply(ef_to_category)
+
+# Slumpa 15 rader
+sampled = df.sample(n=15, random_state=42)
+
+# Bygg upp frågor för Vue
+questions = []
+for _, row in sampled.iterrows():
+    questions.append({
+        "question": "Vad är ungefärlig EF i videon?",
+        "videoUrl": f"mp4/{row['FileName']}.mp4",
+        "answers": ["Normal", "Abnormal", "Reducerat"],
+        "correct": row['category'],
+        "difficulty": "medium"  # kan justeras baserat på EF om du vill
+    })
+
+# Spara till JSON-fil (eller skriv ut)
+with open('quiz_questions.json', 'w', encoding='utf-8') as f:
+    json.dump(questions, f, ensure_ascii=False, indent=2)

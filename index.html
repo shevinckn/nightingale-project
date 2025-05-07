@@ -67,6 +67,12 @@
       margin-bottom: 20px;
       border-radius: 8px;
     }
+
+    .loading-indicator {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ff4d4d;
+    }
   </style>
 </head>
 <body>
@@ -76,6 +82,11 @@
       <h1>{{ title }}</h1>
       <p>Press the button to start the test!</p>
       <button class="btn btn-red" @click="startQuiz">Start the test</button>
+    </div>
+
+    <!-- Laddningsindikator -->
+    <div v-if="loading" class="text-center mt-5 loading-indicator">
+      <p>Laddar frågor, vänligen vänta...</p>
     </div>
 
     <!-- Quiz-sida -->
@@ -207,7 +218,8 @@
           quizEnded: false,
           answerSelected: false,
           feedbackMessage: "",
-          showNextButton: false
+          showNextButton: false,
+          loading: false, // Lägger till loading-flagga
         };
       },
       computed: {
@@ -217,6 +229,7 @@
       },
       methods: {
         async startQuiz() {
+          this.loading = true; // Aktivera laddningsindikator
           try {
             const response = await fetch("http://127.0.0.1:5000/api/questions");
             const data = await response.json();
@@ -231,6 +244,8 @@
             this.showNextButton = false;
           } catch (error) {
             console.error("Fel vid hämtning av frågor:", error);
+          } finally {
+            this.loading = false; // Inaktivera laddningsindikator
           }
         },
         selectAnswer(answer) {
@@ -278,11 +293,13 @@
           const aiCorrect = aiAnswers.filter((ans, i) => ans === this.questions[i].correct).length;
           this.aiScore = aiCorrect;
 
-          this.previousResults.push({
-            timestamp: new Date().toLocaleString(),
-            score: this.score,
-            total: this.questions.length
-          });
+          // Spara resultat i localStorage
+          const results = JSON.parse(localStorage.getItem("quizResults") || "[]");
+          results.push({ score: this.score, aiScore: this.aiScore, date: new Date().toISOString() });
+          localStorage.setItem("quizResults", JSON.stringify(results));
+
+          // Hämta tidigare resultat
+          this.previousResults = JSON.parse(localStorage.getItem("quizResults") || "[]");
         },
         restartQuiz() {
           this.startQuiz();

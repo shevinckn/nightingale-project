@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
@@ -82,8 +82,7 @@
       const match = document.cookie.match(new RegExp('(^| )' + cookieName + '=([^;]+)'));
       if (match) return match[2];
       const newID = 'user_' + Math.random().toString(36).substring(2, 12);
-      document.cookie = ${cookieName}=${newID}; max-age=31536000; path=/;
-      return newID;
+      document.cookie = `${cookieName}=${newID}; max-age=31536000; path=/`;
     }
     const userID = getOrCreateUserID();
   </script>

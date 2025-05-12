@@ -100,6 +100,19 @@ def predict():
 def ai_answer():
     data = request.get_json()
     result = process_data(data)
+
+    
+    # Skapa en dictionary med rätt fält
+    result_dict = {
+         'userID': data.get("userID", "unknown"),
+          'score': data.get("score"),
+           'ai_score': data.get("ai_score"),
+           'total': data.get("total"),
+            'timestamp': data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    write_results_to_csv(result_dict)  # Nu skickar du rätt typ
+
     return jsonify({'answer': result})
 
 @app.route("/api/submit_results", methods=["POST"])
@@ -122,6 +135,7 @@ def submit_results():
             return jsonify({"error": "Missing required fields"}), 400
 
         # Spara till CSV
+        print("Saving result to CSV:", result)
         write_results_to_csv(result)
         return jsonify({"status": "saved"}), 200
     except Exception as e:

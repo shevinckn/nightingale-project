@@ -2,26 +2,50 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
 import joblib
-import random
 import os
+import csv
+from datetime import datetime
 
 app = Flask(__name__, static_folder="dist", static_url_path="")
-CORS(app)  # Tillåter anrop från frontend
+CORS(app)
 
-# Ladda ML-modell och encoder (om du använder den för prediction)
+# Ladda ML-modell och encoder
 model = joblib.load("lightgbm_model.pkl")
 encoder = joblib.load("label_encoder.pkl")
 
-# API: Skapa quizfrågor
+RESULTS_FILE_CSV = "results.csv"  # Enbart CSV-fil används för att spara resultaten
+
+# Funktion för att bearbeta data
+def process_data(data):
+    # Här kan du bearbeta data som skickas via POST-begäran
+    # Just nu returneras bara "Normal" som ett exempel
+    return "Normal"  # Du kan byta detta till logik som baseras på data.
+
+# Funktion för att skriva resultat till CSV
+def write_results_to_csv(results):
+    try:
+        file_exists = os.path.isfile(RESULTS_FILE_CSV)
+        print(f"Writing to file: {RESULTS_FILE_CSV}")  # Debugging: skriv ut filnamnet
+
+        with open(RESULTS_FILE_CSV, mode='a', newline='') as file:
+            fieldnames = ['userID', 'score', 'ai_score', 'total', 'timestamp']
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            
+            if not file_exists:
+                writer.writeheader()
+            
+            writer.writerow(results)
+        print("Results saved successfully!")  # Debugging: skriv ut framgång
+    except Exception as e:
+        print(f"Error saving results to CSV: {e}")  # Om något går fel vid skrivningen
+
+# === API-routes ===
+
 @app.route("/api/questions", methods=["GET"])
 def get_questions():
     try:
         df = pd.read_csv("FileList.csv")
-
-        # Filtrera bort ogiltiga EF
         df = df[pd.to_numeric(df["EF"], errors="coerce").notnull()]
-
-        # Välj slumpmässiga rader (max 15)
         sampled = df.sample(n=min(15, len(df)))
 
         def get_label_from_value(ef):
@@ -37,9 +61,7 @@ def get_questions():
         for _, row in sampled.iterrows():
             filename = f"{row['FileName']}.mp4"
             video_url = f"http://127.0.0.1:5000/videos/{filename}"
-  # Detta pekar på route nedan
-
-            question = {
+            questions.append({
                 "question": "Vad är det mest sannolika EF-värdet för detta hjärta?",
                 "answers": ["Normal", "Reducerad", "Abnormal"],
                 "correct": get_label_from_value(row["EF"]),
@@ -52,25 +74,21 @@ def get_questions():
                     "FPS": row["FPS"],
                     "NumberOfFrames": row["NumberOfFrames"]
                 }
-            }
-            questions.append(question)
+            })
 
         return jsonify(questions)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# API: Serve video från /mp4
 @app.route("/videos/<path:filename>")
 def serve_video(filename):
     video_dir = os.path.join(os.path.dirname(__file__), "mp4")
     return send_from_directory(video_dir, filename)
 
-
-# API: ML prediction (om du använder det)
 @app.route("/api/predict", methods=["POST"])
 def predict():
-    data = request.get_json()
     try:
+        data = request.get_json()
         features = [
             float(data["ESV"]),
             float(data["EDV"]),
@@ -84,7 +102,50 @@ def predict():
         return jsonify({"prediction": label})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-    
+
+@app.route("/api/submit_results", methods=["POST"])
+def submit_results():
+    try:
+        data = request.get_json()
+        print(f"Received data: {data}")  # Debugging: skriv ut datan till terminalen
+
+        # Extrahera nödvändig data från requesten
+        userID = data.get("userID", "unknown")
+        score = data.get("score")
+        ai_score = data.get("ai_score")
+        total = data.get("total")
+        timestamp = data.get("timestamp")
+
+        # Kontrollera att alla obligatoriska fält finns
+        if not userID or score is None or ai_score is None or total is None or not timestamp:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Förbered data för att spara
+        result = {
+            'userID': userID,
+            'score': score,
+            'ai_score': ai_score,
+            'total': total,
+            'timestamp': timestamp
+        }
+
+        # Skriv till CSV
+        write_results_to_csv(result)
+
+        return jsonify({"status": "saved"}), 200  # Returnera ett positivt svar
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500  # Returnera ett serverfel om något går snett
+
+@app.route('/api/ai-answer', methods=['POST'])
+def ai_answer():
+    data = request.get_json()
+    result = process_data(data)  # Här bearbetar du data och får ett resultat
+    write_results_to_csv(result)  # Spara resultatet i CSV
+    # Här kan du göra något AI-liknande, just nu returnerar vi alltid "Normal"
+    return jsonify({'answer': result})
+
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
@@ -92,8 +153,6 @@ def index():
 @app.route("/<path:path>")
 def static_proxy(path):
     return app.send_static_file(path)
-    
 
 if __name__ == "__main__":
     app.run(debug=True)
-

@@ -7,7 +7,7 @@ import QuizPage from './components/QuizPage.vue'
 </template>
 
 <style scoped>
-/* Du kan lägga till globala stilar här om du vill */
+/* Du kan lägga till globala*/
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f9f9f9;

@@ -76,6 +76,18 @@
   </style>
 </head>
 <body>
+  <script> 
+      function getOrCreateUserID() {
+      const cookieName = "userID";
+      const match = document.cookie.match(new RegExp('(^| )' + cookieName + '=([^;]+)'));
+      if (match) return match[2];
+      const newID = 'user_' + Math.random().toString(36).substring(2, 12);
+      document.cookie = `${cookieName}=${newID}; max-age=31536000; path=/`;
+      return newID;
+    }
+    const userID = getOrCreateUserID();
+  </script>
+  
   <div id="app" class="container mt-5">
     <!-- Startskärm -->
     <div v-if="!started && !quizEnded" class="text-center">
@@ -137,6 +149,15 @@
         <p v-if="score > aiScore" class="text-success">Congratulations! You beat the AI! 🏆</p>
         <p v-else-if="score < aiScore" class="text-danger">The AI ​​won this time...🤖🏆</p>
         <p v-else class="text-warning">Draw! Good job!😄</p>
+      </div>
+
+      <div v-if="previousResults.length > 0" class="mt-4">
+        <h5>Dina tidigare resultat</h5>
+        <ul class="list-group">
+          <li v-for="(result, i) in previousResults" :key="i" class="list-group-item">
+            {{ result.timestamp }} – {{ result.score }}/{{ result.total }}
+          </li>
+        </ul>
       </div>
 
       <div v-if="incorrectAnswers.length > 0" class="mt-4 text-start">
@@ -220,6 +241,7 @@
           feedbackMessage: "",
           showNextButton: false,
           loading: false, // Lägger till loading-flagga
+          formLink:""
         };
       },
       computed: {
@@ -289,21 +311,54 @@
               difficulty: q.difficulty || "medium"
             })
           ));
-
           const aiCorrect = aiAnswers.filter((ans, i) => ans === this.questions[i].correct).length;
           this.aiScore = aiCorrect;
 
-          // Spara resultat i localStorage
+         // Spara lokalt
           const results = JSON.parse(localStorage.getItem("quizResults") || "[]");
-          results.push({ score: this.score, aiScore: this.aiScore, date: new Date().toISOString() });
+          const newResult = {
+            score: this.score,
+            aiScore: this.aiScore,
+            total: this.questions.length,
+            timestamp: new Date().toISOString()
+          };
+          results.push(newResult);
           localStorage.setItem("quizResults", JSON.stringify(results));
+          this.previousResults = results;
 
-          // Hämta tidigare resultat
-          this.previousResults = JSON.parse(localStorage.getItem("quizResults") || "[]");
+          //Skicka till backend
+          const userID = localStorage.getItem("userID");
+          try {
+            await fetch("http://127.0.0.1:5000/api/submit_results", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                userID: localStorage.getItem("userID"),
+                score: this.score,
+                total: this.questions.length,
+                ai_score: this.aiScore,
+                timestamp: new Date().toISOString()
+              })
+            });
+          } catch (error) {
+            console.error("Error sending to backend:", error);
+          }
         },
         restartQuiz() {
           this.startQuiz();
         }
+      },
+      mounted() {
+        // Unik användar-ID
+        if (!localStorage.getItem("userID")) {
+          const uuid = crypto.randomUUID();
+          localStorage.setItem("userID", uuid);
+        }
+
+        //Läs tidigare resultat
+        this.previousResults = JSON.parse(localStorage.getItem("quizResults") || "[]");
       }
     });
 

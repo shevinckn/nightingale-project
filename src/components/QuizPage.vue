@@ -1,133 +1,124 @@
 <template>
-    <div v-if="!isQuizFinished" class="quiz-container">
-      <h2 class="question">{{ currentQuestion.question }}</h2>
-  
-      <ul class="options">
-        <li
-          v-for="option in currentQuestion.options"
-          :key="option"
-          :class="{
-            correct: showResult && option === currentQuestion.correctAnswer,
-            wrong: showResult && option === aiAnswer && option !== currentQuestion.correctAnswer,
-          }"
+  <div v-if="!isQuizFinished">
+    <div v-if="currentQuestion">
+      <video :src="currentQuestion.videoUrl" controls width="400" />
+
+      <p>{{ currentQuestion.question }}</p>
+
+      <div>
+        <button
+          v-for="answer in currentQuestion.answers"
+          :key="answer"
+          @click="handleAnswer(answer)"
         >
-          {{ option }}
-        </li>
-      </ul>
-  
-      <p v-if="isThinking">🤖 AI tänker...</p>
-      <p v-else-if="showResult">AI svarade: <strong>{{ aiAnswer }}</strong></p>
-  
-      <p>Poäng: {{ aiScore }}</p>
-  
-      <button @click="nextQuestion" :disabled="isThinking || !showResult">
-        Nästa fråga
-      </button>
+          {{ answer }}
+        </button>
+      </div>
     </div>
-  
-    <div v-else class="result-container">
-      <h2>✅ Quiz klart!</h2>
-      <p>AI:s slutpoäng: <strong>{{ aiScore }}/{{ questions.length }}</strong></p>
-      <p class="comment">{{ getComment() }}</p>
-  
-      <button @click="restartQuiz">🔁 Starta om</button>
-    </div>
-  </template>
-  
-  <script setup>
-  import { ref, computed } from 'vue';
-  import questions from '@/data/questions.json';
-  import { getAIAnswer } from '@/utils/dummyAI';
-  
-  const currentIndex = ref(0);
-  const aiAnswer = ref(null);
-  const aiScore = ref(0);
-  const isThinking = ref(false);
-  const showResult = ref(false);
-  const isQuizFinished = ref(false);
-  
-  const currentQuestion = computed(() => questions[currentIndex.value]);
-  
-  function simulateAIAnswer() {
-    isThinking.value = true;
-    showResult.value = false;
-  
-    setTimeout(() => {
-      aiAnswer.value = getAIAnswer(currentQuestion.value);
-      isThinking.value = false;
-      showResult.value = true;
-  
-      if (aiAnswer.value === currentQuestion.value.correctAnswer) {
-        aiScore.value++;
-      }
-    }, 1500);
+  </div>
+
+  <div v-else>
+    <h2>Quiz klart!</h2>
+    <p>Ditt resultat: {{ userScore }} / {{ questions.length }}</p>
+    <p>AI:s resultat: {{ aiScore }} / {{ questions.length }}</p>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue';
+
+// State
+const questions = ref([]);
+const currentIndex = ref(0);
+const userScore = ref(0);
+const aiScore = ref(0);
+const isQuizFinished = ref(false);
+
+// Hämta frågor från backend
+onMounted(async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/questions');
+    const data = await response.json();
+    questions.value = data;
+  } catch (error) {
+    console.error('Kunde inte hämta frågor:', error);
   }
-  
-  function nextQuestion() {
-    if (currentIndex.value < questions.length - 1) {
-      currentIndex.value++;
-      simulateAIAnswer();
-    } else {
-      isQuizFinished.value = true;
+});
+
+// Returnera nuvarande fråga
+const currentQuestion = computed(() => questions.value[currentIndex.value]);
+
+// Hämta AI-svar
+async function getAIAnswerFromAPI(questionObj) {
+  try {
+    const response = await fetch('http://localhost:5000/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ESV: questionObj.metadata.ESV,
+        EDV: questionObj.metadata.EDV,
+        FrameHeight: questionObj.metadata.FrameHeight,
+        FrameWidth: questionObj.metadata.FrameWidth,
+        FPS: questionObj.metadata.FPS,
+        NumberOfFrames: questionObj.metadata.NumberOfFrames,
+      }),
+    });
+
+    const data = await response.json();
+    return data.prediction;
+  } catch (error) {
+    console.error('API error:', error);
+    return "Normal"; // fallback
+  }
+}
+
+// Hantera svar
+async function handleAnswer(userAnswer) {
+  const question = currentQuestion.value;
+  const correctAnswer = question.correct;
+
+  const aiAnswer = await getAIAnswerFromAPI(question);
+
+  if (userAnswer === correctAnswer) userScore.value++;
+  if (aiAnswer === correctAnswer) aiScore.value++;
+
+  currentIndex.value++;
+
+  if (currentIndex.value >= questions.value.length) {
+    isQuizFinished.value = true;
+  }
+}
+
+// Skicka resultat till backend
+watch(isQuizFinished, async (finished) => {
+  if (finished) {
+    try {
+      const response = await fetch("http://localhost:5000/api/submit_results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userID: "test_user", // Kan ersättas med dynamisk ID
+          score: userScore.value,
+          ai_score: aiScore.value,
+          total: questions.value.length,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Resultat sparat:", data);
+    } catch (error) {
+      console.error("Misslyckades spara resultat:", error);
     }
   }
-  
-  function restartQuiz() {
-    currentIndex.value = 0;
-    aiScore.value = 0;
-    isQuizFinished.value = false;
-    simulateAIAnswer();
-  }
-  
-  function getComment() {
-    const ratio = aiScore.value / questions.length;
-    if (ratio === 1) return '🚀 Perfekt! AI är på topp!';
-    if (ratio > 0.6) return '🧠 Bra jobbat, AI!';
-    if (ratio > 0.3) return '😅 AI gjorde sitt bästa!';
-    return '🤖 AI behöver lite mer träning!';
-  }
-  
-  simulateAIAnswer();
-  </script>
-  
-  <style scoped>
-  .quiz-container, .result-container {
-    max-width: 600px;
-    margin: auto;
-    padding: 20px;
-    text-align: center;
-  }
-  
-  .question {
-    font-size: 1.4rem;
-    margin-bottom: 10px;
-  }
-  
-  .options {
-    list-style: none;
-    padding: 0;
-    margin-bottom: 10px;
-  }
-  
-  .options li {
-    padding: 10px;
-    margin: 6px 0;
-    border-radius: 10px;
-    background: #eee;
-    transition: background-color 0.3s ease;
-  }
-  
-  .options li.correct {
-    background-color: #c8f7c5;
-  }
-  
-  .options li.wrong {
-    background-color: #f7c5c5;
-  }
-  
-  .comment {
-    font-style: italic;
-    font-size: 1.1rem;
-    margin-top: 10px;
-  }
-  </style>
+});
+</script>
+
+<style scoped>
+button {
+  margin: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+}
+</style>

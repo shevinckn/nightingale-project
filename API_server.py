@@ -13,33 +13,27 @@ CORS(app)
 model = joblib.load("lightgbm_model.pkl")
 encoder = joblib.load("label_encoder.pkl")
 
-RESULTS_FILE_CSV = "results.csv"  # Enbart CSV-fil används för att spara resultaten
+RESULTS_FILE_CSV = "results.csv"
 
-# Funktion för att bearbeta data
+# Dummy AI-analys – ersätt med riktig logik om du vill
 def process_data(data):
-    # Här kan du bearbeta data som skickas via POST-begäran
-    # Just nu returneras bara "Normal" som ett exempel
-    return "Normal"  # Du kan byta detta till logik som baseras på data.
+    return "Normal"
 
 # Funktion för att skriva resultat till CSV
 def write_results_to_csv(results):
     try:
         file_exists = os.path.isfile(RESULTS_FILE_CSV)
-        print(f"Writing to file: {RESULTS_FILE_CSV}")  # Debugging: skriv ut filnamnet
-
         with open(RESULTS_FILE_CSV, mode='a', newline='') as file:
             fieldnames = ['userID', 'score', 'ai_score', 'total', 'timestamp']
             writer = csv.DictWriter(file, fieldnames=fieldnames)
-            
             if not file_exists:
                 writer.writeheader()
-            
             writer.writerow(results)
-        print("Results saved successfully!")  # Debugging: skriv ut framgång
+        print("Result saved:", results)
     except Exception as e:
-        print(f"Error saving results to CSV: {e}")  # Om något går fel vid skrivningen
+        print("Error saving results to CSV:", e)
 
-# === API-routes ===
+# === ROUTES ===
 
 @app.route("/api/questions", methods=["GET"])
 def get_questions():
@@ -75,7 +69,6 @@ def get_questions():
                     "NumberOfFrames": row["NumberOfFrames"]
                 }
             })
-
         return jsonify(questions)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -103,48 +96,37 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
+@app.route("/api/ai-answer", methods=["POST"])
+def ai_answer():
+    data = request.get_json()
+    result = process_data(data)
+    return jsonify({'answer': result})
+
 @app.route("/api/submit_results", methods=["POST"])
 def submit_results():
     try:
         data = request.get_json()
-        print(f"Received data: {data}")  # Debugging: skriv ut datan till terminalen
+        print("Received result submission:", data)
 
-        # Extrahera nödvändig data från requesten
-        userID = data.get("userID", "unknown")
-        score = data.get("score")
-        ai_score = data.get("ai_score")
-        total = data.get("total")
-        timestamp = data.get("timestamp")
-
-        # Kontrollera att alla obligatoriska fält finns
-        if not userID or score is None or ai_score is None or total is None or not timestamp:
-            return jsonify({"error": "Missing required fields"}), 400
-
-        # Förbered data för att spara
+        # Extrahera fält
         result = {
-            'userID': userID,
-            'score': score,
-            'ai_score': ai_score,
-            'total': total,
-            'timestamp': timestamp
+            'userID': data.get("userID", "unknown"),
+            'score': data.get("score"),
+            'ai_score': data.get("ai_score"),
+            'total': data.get("total"),
+            'timestamp': data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # Skriv till CSV
+        # Kontrollera obligatoriska fält
+        if None in result.values() or "" in result.values():
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Spara till CSV
         write_results_to_csv(result)
-
-        return jsonify({"status": "saved"}), 200  # Returnera ett positivt svar
-
+        return jsonify({"status": "saved"}), 200
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({"error": str(e)}), 500  # Returnera ett serverfel om något går snett
-
-@app.route('/api/ai-answer', methods=['POST'])
-def ai_answer():
-    data = request.get_json()
-    result = process_data(data)  # Här bearbetar du data och får ett resultat
-    write_results_to_csv(result)  # Spara resultatet i CSV
-    # Här kan du göra något AI-liknande, just nu returnerar vi alltid "Normal"
-    return jsonify({'answer': result})
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/")
 def index():

@@ -15,11 +15,8 @@ encoder = joblib.load("label_encoder.pkl")
 
 RESULTS_FILE_CSV = "results.csv"
 
-# Dummy AI-analys – ersätt med riktig logik om du vill
-def process_data(data):
-    return "Normal"
+# === Funktioner ===
 
-# Funktion för att skriva resultat till CSV
 def write_results_to_csv(results):
     try:
         file_exists = os.path.isfile(RESULTS_FILE_CSV)
@@ -33,23 +30,24 @@ def write_results_to_csv(results):
     except Exception as e:
         print("Error saving results to CSV:", e)
 
+def ef_label(ef):
+    ef = float(ef)
+    if ef >= 55:
+        return "Normal"
+    elif 40 <= ef < 55:
+        return "Reducerad"
+    else:
+        return "Abnormal"
+
 # === ROUTES ===
 
 @app.route("/api/questions", methods=["GET"])
 def get_questions():
     try:
+        # Läs in data från CSV med hjärtdata
         df = pd.read_csv("FileList.csv")
         df = df[pd.to_numeric(df["EF"], errors="coerce").notnull()]
         sampled = df.sample(n=min(15, len(df)))
-
-        def get_label_from_value(ef):
-            ef = float(ef)
-            if ef >= 55:
-                return "Normal"
-            elif 40 <= ef < 55:
-                return "Reducerad"
-            else:
-                return "Abnormal"
 
         questions = []
         for _, row in sampled.iterrows():
@@ -58,8 +56,9 @@ def get_questions():
             questions.append({
                 "question": "Vad är det mest sannolika EF-värdet för detta hjärta?",
                 "answers": ["Normal", "Reducerad", "Abnormal"],
-                "correct": get_label_from_value(row["EF"]),
+                "correct": ef_label(row["EF"]),
                 "videoUrl": video_url,
+                "difficulty": "medium",
                 "metadata": {
                     "ESV": row["ESV"],
                     "EDV": row["EDV"],
@@ -98,22 +97,32 @@ def predict():
 
 @app.route("/api/ai-answer", methods=["POST"])
 def ai_answer():
-    data = request.get_json()
-    result = process_data(data)
+    try:
+        data = request.get_json()
+        metadata = data.get("metadata", {})
+        features = [
+            float(metadata.get("ESV", 0)),
+            float(metadata.get("EDV", 0)),
+            float(metadata.get("FrameHeight", 0)),
+            float(metadata.get("FrameWidth", 0)),
+            float(metadata.get("FPS", 0)),
+            float(metadata.get("NumberOfFrames", 0)),
+        ]
+        prediction = model.predict([features])[0]
+        label = encoder.inverse_transform([prediction])[0]
 
-    
-    # Skapa en dictionary med rätt fält
-    result_dict = {
-         'userID': data.get("userID", "unknown"),
-          'score': data.get("score"),
-           'ai_score': data.get("ai_score"),
-           'total': data.get("total"),
-            'timestamp': data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
+        # Generera en hint baserat på AI:s bedömning
+        if label == "Normal":
+            hint = "Hjärtat verkar vara friskt, men fortsätt vara uppmärksam på andra tecken på hjärtproblem."
+        elif label == "Reducerad":
+            hint = "Hjärtat har reducerad funktion, vilket kan vara ett tecken på hjärtsvikt eller andra problem."
+        else:
+            hint = "Abnormt EF-värde, vilket kan indikera allvarligare hjärtproblem. Vänligen kontakta läkare."
 
-    write_results_to_csv(result_dict)  # Nu skickar du rätt typ
-
-    return jsonify({'answer': result})
+        return jsonify({"answer": label, "hint": hint})
+    except Exception as e:
+        print("Error in /api/ai-answer:", e)
+        return jsonify({"answer": "Normal", "hint": "AI kunde inte ge en hint."})  # fallback
 
 @app.route("/api/submit_results", methods=["POST"])
 def submit_results():
@@ -121,7 +130,6 @@ def submit_results():
         data = request.get_json()
         print("Received result submission:", data)
 
-        # Extrahera fält
         result = {
             'userID': data.get("userID", "unknown"),
             'score': data.get("score"),
@@ -130,12 +138,9 @@ def submit_results():
             'timestamp': data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # Kontrollera obligatoriska fält
         if None in result.values() or "" in result.values():
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Spara till CSV
-        print("Saving result to CSV:", result)
         write_results_to_csv(result)
         return jsonify({"status": "saved"}), 200
     except Exception as e:

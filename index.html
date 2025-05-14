@@ -1,20 +1,16 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quiz with AI</title>
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
   <style>
     body {
       background-color: #ffffff;
       color: #000000;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
     .btn-red {
       background-color: #ff4d4d;
       color: #ffffff;
@@ -24,26 +20,22 @@
       transition: all 0.3s ease;
       font-weight: bold;
     }
-
     .btn-red:hover {
       background-color: #e60000;
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
     }
-
     .btn-outline-dark {
       border-radius: 10px;
       font-weight: 500;
       transition: all 0.3s ease;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
-
     .btn-outline-dark:hover {
       background-color: #000;
       color: #fff;
       transform: scale(1.02);
     }
-
     .card {
       border: none;
       border-radius: 12px;
@@ -55,11 +47,9 @@
       padding: 1.5rem;
       width: 100%;
     }
-
     .card:hover {
       box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
     }
-
     video {
       max-width: 100%;
       max-height: 240px;
@@ -67,7 +57,6 @@
       margin-bottom: 20px;
       border-radius: 8px;
     }
-
     .loading-indicator {
       font-size: 1.5rem;
       font-weight: bold;
@@ -76,292 +65,271 @@
   </style>
 </head>
 <body>
-  <script> 
-      function getOrCreateUserID() {
-      const cookieName = "userID";
-      const match = document.cookie.match(new RegExp('(^| )' + cookieName + '=([^;]+)'));
-      if (match) return match[2];
-      const newID = 'user_' + Math.random().toString(36).substring(2, 12);
-      document.cookie = `${cookieName}=${newID}; max-age=31536000; path=/`;
+
+<script>
+  function getOrCreateUserID() {
+    const cookieName = "userID";
+    const match = document.cookie.match(new RegExp('(^| )' + cookieName + '=([^;]+)'));
+    if (match) {
+      localStorage.setItem("userID", match[2]);
+      return match[2];
     }
-    const userID = getOrCreateUserID();
-  </script>
-  
-  <div id="app" class="container mt-5">
-    <!-- Startskärm -->
-    <div v-if="!started && !quizEnded" class="text-center">
-      <h1>{{ title }}</h1>
-      <p>Press the button to start the test!</p>
-      <button class="btn btn-red" @click="startQuiz">Start the test</button>
+    const newID = 'user_' + Math.random().toString(36).substring(2, 12);
+    document.cookie = `${cookieName}=${newID}; max-age=31536000; path=/`;
+    localStorage.setItem("userID", newID);
+    return newID;
+  }
+  const userID = getOrCreateUserID();
+</script>
+
+<div id="app" class="container mt-5">
+
+  <!-- Startskärm -->
+  <div v-if="!started && !quizEnded" class="text-center">
+    <h1>{{ title }}</h1>
+    <p>Press the button to start the test!</p>
+    <button class="btn btn-red" @click="startQuiz">Start the test</button>
+  </div>
+
+  <!-- Laddningsindikator -->
+  <div v-if="loading" class="text-center mt-5 loading-indicator">
+    <p>Laddar frågor, vänligen vänta...</p>
+  </div>
+
+  <!-- Quiz-sida -->
+  <div v-if="started && !quizEnded" class="card p-4">
+    <h4>Fråga {{ currentIndex + 1 }} av {{ questions.length }}</h4>
+    <h3 class="my-3">{{ currentQuestion.question }}</h3>
+
+    <video v-if="currentQuestion.videoUrl" :key="currentIndex" controls>
+      <source :src="currentQuestion.videoUrl" type="video/mp4" />
+      Din webbläsare stödjer inte video.
+    </video>
+
+    <div v-if="aiHint" class="alert alert-info mt-2">
+      🤖 <strong>Hint från AI:</strong> {{ aiHint }}
     </div>
 
-    <!-- Laddningsindikator -->
-    <div v-if="loading" class="text-center mt-5 loading-indicator">
-      <p>Laddar frågor, vänligen vänta...</p>
-    </div>
-
-    <!-- Quiz-sida -->
-    <div v-if="started && !quizEnded" class="card p-4">
-      <h4>Question {{ currentIndex + 1 }} of {{ questions.length }}</h4>
-      <h3 class="my-3">{{ currentQuestion.question }}</h3>
-
-      <video v-if="currentQuestion.videoUrl" :key="currentIndex" controls>
-        <source :src="currentQuestion.videoUrl" type="video/mp4" />
-        Din webbläsare stödjer inte video.
-      </video>
-
-      <div v-for="(answer, index) in currentQuestion.answers" :key="index">
-        <button
-          class="btn btn-outline-dark w-100 mb-2"
-          :disabled="answerSelected"
-          @click="selectAnswer(answer)"
-        >
-          {{ answer }}
-        </button>
-      </div>
-
-      <!-- Feedback -->
-      <div v-if="feedbackMessage" class="mt-3">
-        <p :class="{'text-success': feedbackMessage.includes('Rätt'), 'text-danger': feedbackMessage.includes('Fel')}">
-          {{ feedbackMessage }}
-        </p>
-      </div>
-
-      <button
-        v-if="showNextButton"
-        class="btn btn-red mt-3"
-        @click="nextQuestion"
-      >
-        Next question
+    <div v-for="(answer, index) in currentQuestion.answers" :key="index">
+      <button class="btn btn-outline-dark w-100 mb-2" :disabled="answerSelected" @click="selectAnswer(answer)">
+        {{ answer }}
       </button>
     </div>
 
-    <!-- Resultatsida -->
-    <div v-if="quizEnded" class="text-center">
-      <h2>The quiz is ready!</h2>
-      <p>You got {{ score }} of {{ questions.length }} right!</p>
-
-      <div class="mt-4 p-3 border rounded" style="background-color: #f8f9fa;">
-        <h4>Score Comparison</h4>
-        <p>You: <strong>{{ score }}</strong></p>
-        <p>🤖 AI: <strong>{{ aiScore }}</strong></p>
-        <p v-if="score > aiScore" class="text-success">Congratulations! You beat the AI! 🏆</p>
-        <p v-else-if="score < aiScore" class="text-danger">The AI ​​won this time...🤖🏆</p>
-        <p v-else class="text-warning">Draw! Good job!😄</p>
-      </div>
-
-      <div v-if="previousResults.length > 0" class="mt-4">
-        <h5>Dina tidigare resultat</h5>
-        <ul class="list-group">
-          <li v-for="(result, i) in previousResults" :key="i" class="list-group-item">
-            {{ result.timestamp }} – {{ result.score }}/{{ result.total }}
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="incorrectAnswers.length > 0" class="mt-4 text-start">
-        <h5>Incorrect answers:</h5>
-        <ul class="list-group">
-          <li
-            v-for="(item, index) in incorrectAnswers"
-            :key="index"
-            class="list-group-item"
-          >
-            <strong>Question:</strong> {{ item.question }}<br />
-            <span class="text-danger"><strong>Your answer:</strong> {{ item.selected }}</span><br />
-            <span class="text-success"><strong>Correct answer:</strong> {{ item.correct }}</span>
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="previousResults.length > 0" class="mt-4">
-        <h5>Your previous results</h5>
-        <ul class="list-group">
-          <li
-            v-for="(result, i) in previousResults"
-            :key="i"
-            class="list-group-item"
-          >
-            {{ result.timestamp }} – {{ result.score }}/{{ result.total }}
-          </li>
-        </ul>
-      </div>
-
-      <button class="btn btn-red mt-4" @click="restartQuiz">Play again!</button>
+    <!-- Feedback -->
+    <div v-if="feedbackMessage" class="mt-3">
+      <p :class="{'text-success': feedbackMessage.includes('Rätt'), 'text-danger': feedbackMessage.includes('Fel')}">
+        {{ feedbackMessage }}
+      </p>
     </div>
+
+    <button v-if="showNextButton" class="btn btn-red mt-3" @click="nextQuestion">
+      Nästa fråga
+    </button>
   </div>
 
-  <!-- Vue.js -->
-  <script src="https://unpkg.com/vue@3"></script>
+  <!-- Resultatsida -->
+  <div v-if="quizEnded" class="text-center">
+    <h2>Testet är klart!</h2>
+    <p>Du fick {{ score }} av {{ questions.length }} rätt!</p>
 
-  <!-- Dummy AI (fallback om API misslyckas) -->
-  <script>
-    function getAIAnswer({ question, options, correctAnswer, difficulty }) {
-      const random = Math.random();
-      if (difficulty === "easy") return random < 0.9 ? correctAnswer : options.find(o => o !== correctAnswer);
-      if (difficulty === "medium") return random < 0.7 ? correctAnswer : options.find(o => o !== correctAnswer);
-      return random < 0.5 ? correctAnswer : options.find(o => o !== correctAnswer);
+    <div class="mt-4 p-3 border rounded" style="background-color: #f8f9fa;">
+      <h4>Poängjämförelse</h4>
+      <p>Du: <strong>{{ score }}</strong></p>
+      <p>🤖 AI: <strong>{{ aiScore }}</strong></p>
+      <p v-if="score > aiScore" class="text-success">Grattis! Du slog AI:n! 🏆</p>
+      <p v-else-if="score < aiScore" class="text-danger">AI vann den här gången...🤖🏆</p>
+      <p v-else class="text-warning">Oavgjort! Bra kämpat! 😄</p>
+    </div>
+
+    <div v-if="incorrectAnswers.length > 0" class="mt-4 text-start">
+      <h5>Felaktiga svar:</h5>
+      <ul class="list-group">
+        <li v-for="(item, index) in incorrectAnswers" :key="index" class="list-group-item">
+          <strong>Fråga:</strong> {{ item.question }}<br />
+          <span class="text-danger"><strong>Ditt svar:</strong> {{ item.selected }}</span><br />
+          <span class="text-success"><strong>Korrekt svar:</strong> {{ item.correct }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div v-if="previousResults.length > 0" class="mt-4">
+      <h5>Dina tidigare resultat</h5>
+      <ul class="list-group">
+        <li v-for="(result, i) in previousResults" :key="i" class="list-group-item">
+          {{ result.timestamp }} – {{ result.score }}/{{ result.total }}
+        </li>
+      </ul>
+    </div>
+
+    <button class="btn btn-red mt-4" @click="restartQuiz">Spela igen!</button>
+  </div>
+</div>
+
+<!-- Vue.js -->
+<script src="https://unpkg.com/vue@3"></script>
+
+<!-- AI-svar API -->
+<script>
+  async function getAIAnswerFromAPI(questionObj) {
+    try {
+      const response = await fetch('http://localhost:5000/api/ai-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(questionObj)
+      });
+      const data = await response.json();
+      return data.answer;
+    } catch (error) {
+      console.error('API-fel:', error);
+      return null;
     }
-  </script>
+  }
+</script>
 
-  <!-- API-anrop till /api/ai-answer -->
-  <script>
-    async function getAIAnswerFromAPI(questionObj) {
-      try {
-        const response = await fetch('http://localhost:5000/api/ai-answer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(questionObj)
-        });
-        const data = await response.json();
-        return data.answer;
-      } catch (error) {
-        console.error('API error:', error);
-        return "Normal"; // fallback
+<!-- Vue App -->
+<script>
+  const app = Vue.createApp({
+    data() {
+      return {
+        title: "AI vs Human: Video Quiz",
+        questions: [],
+        currentIndex: 0,
+        score: 0,
+        aiScore: 0,
+        selectedAnswers: [],
+        incorrectAnswers: [],
+        previousResults: [],
+        started: false,
+        quizEnded: false,
+        answerSelected: false,
+        feedbackMessage: "",
+        showNextButton: false,
+        loading: false,
+        aiHint: ""
+      };
+    },
+    computed: {
+      currentQuestion() {
+        return this.questions[this.currentIndex] || {};
       }
-    }
-  </script>
-
-  <script>
-    const app = Vue.createApp({
-      data() {
-        return {
-          title: "AI vs Human: Video Quiz",
-          questions: [],
-          currentIndex: 0,
-          score: 0,
-          aiScore: 0,
-          selectedAnswers: [],
-          incorrectAnswers: [],
-          previousResults: [],
-          started: false,
-          quizEnded: false,
-          answerSelected: false,
-          feedbackMessage: "",
-          showNextButton: false,
-          loading: false, // Lägger till loading-flagga
-          formLink:""
-        };
-      },
-      computed: {
-        currentQuestion() {
-          return this.questions[this.currentIndex] || {};
-        }
-      },
-      methods: {
-        async startQuiz() {
-          this.loading = true; // Aktivera laddningsindikator
-          try {
-            const response = await fetch("http://127.0.0.1:5000/api/questions");
-            const data = await response.json();
-            this.questions = data;
-            this.started = true;
-            this.quizEnded = false;
-            this.currentIndex = 0;
-            this.selectedAnswers = [];
-            this.incorrectAnswers = [];
-            this.answerSelected = false;
-            this.feedbackMessage = "";
-            this.showNextButton = false;
-          } catch (error) {
-            console.error("Fel vid hämtning av frågor:", error);
-          } finally {
-            this.loading = false; // Inaktivera laddningsindikator
-          }
-        },
-        selectAnswer(answer) {
-          this.answerSelected = true;
-          const correct = this.currentQuestion.correct;
-          const feedback = answer === correct ? "Rätt svar! ✅" : "Fel svar ❌";
-          this.feedbackMessage = feedback;
-          this.selectedAnswers.push({
-            question: this.currentQuestion.question,
-            selected: answer,
-            correct: correct
-          });
-          if (answer !== correct) {
-            this.incorrectAnswers.push({
-              question: this.currentQuestion.question,
-              selected: answer,
-              correct: correct
-            });
-          }
-          this.showNextButton = true;
-        },
-        nextQuestion() {
-          this.currentIndex++;
+    },
+    methods: {
+      async startQuiz() {
+        this.loading = true;
+        try {
+          const response = await fetch("http://127.0.0.1:5000/api/questions");
+          const data = await response.json();
+          this.questions = data;
+          this.started = true;
+          this.quizEnded = false;
+          this.currentIndex = 0;
+          this.selectedAnswers = [];
+          this.incorrectAnswers = [];
           this.answerSelected = false;
           this.feedbackMessage = "";
           this.showNextButton = false;
-          if (this.currentIndex >= this.questions.length) {
-            this.endQuiz();
-          }
-        },
-        async endQuiz() {
-          this.started = false;
-          this.quizEnded = true;
-          this.score = this.selectedAnswers.filter(a => a.selected === a.correct).length;
 
-          const aiAnswers = await Promise.all(this.questions.map(q =>
-            getAIAnswerFromAPI({
-              question: q.question,
-              options: q.answers,
-              correctAnswer: q.correct,
-              difficulty: q.difficulty || "medium"
-            })
-          ));
-          const aiCorrect = aiAnswers.filter((ans, i) => ans === this.questions[i].correct).length;
-          this.aiScore = aiCorrect;
-
-         // Spara lokalt
-          const results = JSON.parse(localStorage.getItem("quizResults") || "[]");
-          const newResult = {
-            score: this.score,
-            aiScore: this.aiScore,
-            total: this.questions.length,
-            timestamp: new Date().toISOString()
-          };
-          results.push(newResult);
-          localStorage.setItem("quizResults", JSON.stringify(results));
-          this.previousResults = results;
-
-          //Skicka till backend
-          const userID = localStorage.getItem("userID");
-          try {
-            await fetch("http://127.0.0.1:5000/api/submit_results", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                userID: localStorage.getItem("userID"),
-                score: this.score,
-                total: this.questions.length,
-                ai_score: this.aiScore,
-                timestamp: new Date().toISOString()
-              })
-            });
-          } catch (error) {
-            console.error("Error sending to backend:", error);
-          }
-        },
-        restartQuiz() {
-          this.startQuiz();
+          // Första AI-hint
+          this.aiHint = await getAIAnswerFromAPI({
+            question: this.currentQuestion.question,
+            options: this.currentQuestion.answers,
+            correctAnswer: this.currentQuestion.correct,
+            difficulty: this.currentQuestion.difficulty || "medium"
+          });
+        } catch (error) {
+          console.error("Fel vid hämtning av frågor:", error);
+        } finally {
+          this.loading = false;
         }
       },
-      mounted() {
-        // Unik användar-ID
-        if (!localStorage.getItem("userID")) {
-          const uuid = crypto.randomUUID();
-          localStorage.setItem("userID", uuid);
+      async selectAnswer(answer) {
+        this.answerSelected = true;
+        const correct = this.currentQuestion.correct;
+        this.feedbackMessage = answer === correct ? "Rätt svar! ✅" : "Fel svar ❌";
+        this.selectedAnswers.push({ question: this.currentQuestion.question, selected: answer, correct });
+
+        if (answer !== correct) {
+          this.incorrectAnswers.push({ question: this.currentQuestion.question, selected: answer, correct });
         }
+        this.showNextButton = true;
+      },
+      async nextQuestion() {
+        this.currentIndex++;
+        this.answerSelected = false;
+        this.feedbackMessage = "";
+        this.showNextButton = false;
 
-        //Läs tidigare resultat
-        this.previousResults = JSON.parse(localStorage.getItem("quizResults") || "[]");
+        if (this.currentIndex >= this.questions.length) {
+          await this.endQuiz();
+        } else {
+          // Hämta ny hint
+          this.aiHint = await getAIAnswerFromAPI({
+            question: this.currentQuestion.question,
+            options: this.currentQuestion.answers,
+            correctAnswer: this.currentQuestion.correct,
+            difficulty: this.currentQuestion.difficulty || "medium"
+          });
+        }
+      },
+      async endQuiz() {
+        this.started = false;
+        this.quizEnded = true;
+        this.score = this.selectedAnswers.filter(a => a.selected === a.correct).length;
+
+        const aiAnswers = await Promise.all(this.questions.map(q =>
+          getAIAnswerFromAPI({
+            question: q.question,
+            options: q.answers,
+            correctAnswer: q.correct,
+            difficulty: q.difficulty || "medium"
+          })
+        ));
+
+        this.aiScore = aiAnswers.filter((ans, i) => ans === this.questions[i].correct).length;
+
+        const results = JSON.parse(localStorage.getItem("quizResults") || "[]");
+        const newResult = {
+          score: this.score,
+          aiScore: this.aiScore,
+          total: this.questions.length,
+          timestamp: new Date().toISOString()
+        };
+        results.push(newResult);
+        localStorage.setItem("quizResults", JSON.stringify(results));
+        this.previousResults = results;
+
+        try {
+          await fetch("http://127.0.0.1:5000/api/submit_results", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userID: localStorage.getItem("userID") || "anonymous",
+              score: this.score,
+              total: this.questions.length,
+              ai_score: this.aiScore,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error("Fel vid sparning till backend:", error);
+        }
+      },
+      restartQuiz() {
+        this.startQuiz();
       }
-    });
+    },
+    mounted() {
+      if (!localStorage.getItem("userID")) {
+        const newID = 'user_' + Math.random().toString(36).substring(2, 12);
+        localStorage.setItem("userID", newID);
+        document.cookie = `userID=${newID}; max-age=31536000; path=/`;
+      }
+      this.previousResults = JSON.parse(localStorage.getItem("quizResults") || "[]");
+    }
+  });
 
-    app.mount("#app");
-  </script>
+  app.mount("#app");
+</script>
 </body>
 </html>

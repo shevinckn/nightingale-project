@@ -44,7 +44,6 @@ def ef_label(ef):
 @app.route("/api/questions", methods=["GET"])
 def get_questions():
     try:
-        # Läs in data från CSV med hjärtdata
         df = pd.read_csv("FileList.csv")
         df = df[pd.to_numeric(df["EF"], errors="coerce").notnull()]
         sampled = df.sample(n=min(15, len(df)))
@@ -52,7 +51,7 @@ def get_questions():
         questions = []
         for _, row in sampled.iterrows():
             filename = f"{row['FileName']}.mp4"
-            video_url = f"http://127.0.0.1:5000/videos/{filename}"
+            video_url = f"http://localhost:5000/videos/{filename}"
             questions.append({
                 "question": "Vad är det mest sannolika EF-värdet för detta hjärta?",
                 "answers": ["Normal", "Reducerad", "Abnormal"],
@@ -100,29 +99,48 @@ def ai_answer():
     try:
         data = request.get_json()
         metadata = data.get("metadata", {})
-        features = [
-            float(metadata.get("ESV", 0)),
-            float(metadata.get("EDV", 0)),
-            float(metadata.get("FrameHeight", 0)),
-            float(metadata.get("FrameWidth", 0)),
-            float(metadata.get("FPS", 0)),
-            float(metadata.get("NumberOfFrames", 0)),
-        ]
+
+        esv = float(metadata.get("ESV", 0))
+        edv = float(metadata.get("EDV", 0))
+        frame_height = float(metadata.get("FrameHeight", 0))
+        frame_width = float(metadata.get("FrameWidth", 0))
+        fps = float(metadata.get("FPS", 0))
+        num_frames = float(metadata.get("NumberOfFrames", 0))
+
+        features = [esv, edv, frame_height, frame_width, fps, num_frames]
         prediction = model.predict([features])[0]
         label = encoder.inverse_transform([prediction])[0]
 
-        # Generera en hint baserat på AI:s bedömning
-        if label == "Normal":
-            hint = "Hjärtat verkar vara friskt, men fortsätt vara uppmärksam på andra tecken på hjärtproblem."
-        elif label == "Reducerad":
-            hint = "Hjärtat har reducerad funktion, vilket kan vara ett tecken på hjärtsvikt eller andra problem."
-        else:
-            hint = "Abnormt EF-värde, vilket kan indikera allvarligare hjärtproblem. Vänligen kontakta läkare."
+        # Beräkna uppskattat EF
+        ef_estimate = ((edv - esv) / edv) * 100 if edv > 0 else 0
+        ef_estimate = round(ef_estimate, 1)
 
-        return jsonify({"answer": label, "hint": hint})
+        # Smart hint beroende på EF
+        if label == "Normal":
+            hint = (
+                f"Slagvolymen ({edv - esv:.1f}) är stor i förhållande till EDV ({edv:.0f}), "
+                
+            )
+        elif label == "Reducerad":
+            hint = (
+                f"Trots att hjärtat fylls väl (EDV: {edv:.0f}), är skillnaden till ESV ({esv:.0f}) mindre än väntat. "
+                
+            )
+        else:
+            hint = (
+                f"Skillnaden mellan EDV ({edv:.0f}) och ESV ({esv:.0f}) är liten, vilket betyder låg slagvolym. "
+                
+            )
+
+        return jsonify({
+            "answer": label,
+            "hint": hint,
+            "ef_estimate": ef_estimate
+        })
+
     except Exception as e:
         print("Error in /api/ai-answer:", e)
-        return jsonify({"answer": "Normal", "hint": "AI kunde inte ge en hint."})  # fallback
+        return jsonify({"answer": "Normal", "hint": "AI kunde inte ge en hint."})
 
 @app.route("/api/submit_results", methods=["POST"])
 def submit_results():

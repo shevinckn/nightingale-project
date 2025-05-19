@@ -9,13 +9,13 @@ from datetime import datetime
 app = Flask(__name__, static_folder="dist", static_url_path="")
 CORS(app)
 
-# Ladda ML-modell och encoder
+# Load ML model and encoder
 model = joblib.load("lightgbm_model.pkl")
 encoder = joblib.load("label_encoder.pkl")
 
 RESULTS_FILE_CSV = "results.csv"
 
-# === Funktioner ===
+# === Functions ===
 
 def write_results_to_csv(results):
     try:
@@ -35,7 +35,7 @@ def ef_label(ef):
     if ef >= 55:
         return "Normal"
     elif 40 <= ef < 55:
-        return "Reducerad"
+        return "Reduced"
     else:
         return "Abnormal"
 
@@ -53,8 +53,8 @@ def get_questions():
             filename = f"{row['FileName']}.mp4"
             video_url = f"http://localhost:5000/videos/{filename}"
             questions.append({
-                "question": "Vad är det mest sannolika EF-värdet för detta hjärta?",
-                "answers": ["Normal", "Reducerad", "Abnormal"],
+                "question": "What is the most likely EF value for this heart?",
+                "answers": ["Normal", "Reduced", "Abnormal"],
                 "correct": ef_label(row["EF"]),
                 "videoUrl": video_url,
                 "difficulty": "medium",
@@ -111,25 +111,25 @@ def ai_answer():
         prediction = model.predict([features])[0]
         label = encoder.inverse_transform([prediction])[0]
 
-        # Beräkna uppskattat EF
+        # Calculate estimated EF
         ef_estimate = ((edv - esv) / edv) * 100 if edv > 0 else 0
         ef_estimate = round(ef_estimate, 1)
 
-        # Smart hint beroende på EF
+        # Smart hint based on EF
         if label == "Normal":
             hint = (
-                f"Slagvolymen ({edv - esv:.1f}) är stor i förhållande till EDV ({edv:.0f}), "
-                
+                f"The stroke volume ({edv - esv:.1f}) is large relative to EDV ({edv:.0f}), "
+                f"indicating good ejection performance."
             )
-        elif label == "Reducerad":
+        elif label == "Reduced":
             hint = (
-                f"Trots att hjärtat fylls väl (EDV: {edv:.0f}), är skillnaden till ESV ({esv:.0f}) mindre än väntat. "
-                
+                f"Although the heart fills well (EDV: {edv:.0f}), the difference to ESV ({esv:.0f}) is less than expected, "
+                f"suggesting impaired ejection."
             )
         else:
             hint = (
-                f"Skillnaden mellan EDV ({edv:.0f}) och ESV ({esv:.0f}) är liten, vilket betyder låg slagvolym. "
-                
+                f"The difference between EDV ({edv:.0f}) and ESV ({esv:.0f}) is small, indicating low stroke volume "
+                f"and poor pumping function."
             )
 
         return jsonify({
@@ -140,7 +140,7 @@ def ai_answer():
 
     except Exception as e:
         print("Error in /api/ai-answer:", e)
-        return jsonify({"answer": "Normal", "hint": "AI kunde inte ge en hint."})
+        return jsonify({"answer": "Normal", "hint": "AI could not provide a hint."})
 
 @app.route("/api/submit_results", methods=["POST"])
 def submit_results():

@@ -5,6 +5,7 @@ import joblib
 import os
 import csv
 from datetime import datetime
+import pytz  # För lokal tidszonskonvertering
 
 app = Flask(__name__, static_folder="dist", static_url_path="")
 CORS(app)
@@ -111,11 +112,9 @@ def ai_answer():
         prediction = model.predict([features])[0]
         label = encoder.inverse_transform([prediction])[0]
 
-        # Calculate estimated EF
         ef_estimate = ((edv - esv) / edv) * 100 if edv > 0 else 0
         ef_estimate = round(ef_estimate, 1)
 
-        # Smart hint based on EF
         if label == "Normal":
             hint = (
                 f"The stroke volume ({edv - esv:.1f}) is large relative to EDV ({edv:.0f}), "
@@ -148,12 +147,30 @@ def submit_results():
         data = request.get_json()
         print("Received result submission:", data)
 
+        utc_timestamp_str = data.get("timestamp")
+
+        if utc_timestamp_str:
+            try:
+                # Tolkning av inkommande UTC-sträng
+                utc_dt = datetime.strptime(utc_timestamp_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+                utc_dt = utc_dt.replace(tzinfo=pytz.utc)
+
+                # Konvertering till lokal svensk tid
+                local_tz = pytz.timezone("Europe/Stockholm")
+                local_dt = utc_dt.astimezone(local_tz)
+                local_timestamp_str = local_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception as e:
+                print("Timestamp conversion failed:", e)
+                local_timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            local_timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         result = {
             'userID': data.get("userID", "unknown"),
             'score': data.get("score"),
             'ai_score': data.get("ai_score"),
             'total': data.get("total"),
-            'timestamp': data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            'timestamp': local_timestamp_str
         }
 
         if None in result.values() or "" in result.values():

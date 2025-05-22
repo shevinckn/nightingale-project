@@ -302,7 +302,7 @@
           score: this.score,
           aiScore: this.aiScore,
           total: this.questions.length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toLocaleString()
         };
         results.push(newResult);
         localStorage.setItem("quizResults", JSON.stringify(results));
@@ -317,7 +317,7 @@
               score: this.score,
               total: this.questions.length,
               ai_score: this.aiScore,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toLocaleString()
             })
           });
         } catch (error) {

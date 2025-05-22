@@ -126,6 +126,7 @@ def ai_answer():
                 f"suggesting impaired ejection."
             )
         else:
+            label = "Abnormal"
             hint = (
                 f"The difference between EDV ({edv:.0f}) and ESV ({esv:.0f}) is small, indicating low stroke volume "
                 f"and poor pumping function."
